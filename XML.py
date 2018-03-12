@@ -28,12 +28,12 @@ class pyXMLTag():
     def __init__(self, sXMLData, sKey, bDebug=True, bEncryption = True):
         self.Debugger = pyDebugger(self,bDebug,False)
         self.Debugger.Log("Initializing XML Data Class with Encryption=" + str(bEncryption) + "...")
-        
+
         self.__sData = ""
         self.__dKeys = {}
         self._bDataEncryption = True
         self.isValid = False
-       
+
         #Set Encryption
         self._bDataEncryption = bEncryption
         #check for valid key
@@ -60,8 +60,8 @@ class pyXMLTag():
                 self.Debugger.Log("*************************************************")
                 return
             #try and get the position of the end key
-            iKeyStop = sXMLData.find(sKeyStop) 
-            if iKeyStop > -1:    
+            iKeyStop = sXMLData.find(sKeyStop)
+            if iKeyStop > -1:
                 self.Debugger.Log("KeyStop index is '" + str(iKeyStop) + "'")
             else:
                 self.Debugger.Log("PXML Warning: Couldn't find StopKey in XML Data!")
@@ -76,14 +76,13 @@ class pyXMLTag():
                 self.Debugger.Log("***************************************************")
                 return
 
-                
             #check to make sure our range is valid
             if iKeyStop - iKeyStart > 0:
                 #Get our data and store it
                 self.Set_Data(sXMLData[(iKeyStartStop+1):iKeyStop])
                 self.isValid = True
                 self.Debugger.Log("Valid Data Found...")
-            
+
             #Check to see if w have data in our start tag
             if iKeyStartStop - iKeyStart > 2:
                 self.Debugger.Log("Extracting Additional Key Data...")
@@ -121,8 +120,12 @@ class pyXMLTag():
                                 sVl = ""
                     elif sKeystring[bLoop:(bLoop+1)] == "=":
                         #we need to switch to value vars
-                        #self.Debugger.Log("Key is '" + sKy + "'. Switching from Key to Value...")
-                        bKy = False
+                        #but only if we aren't in the middle of a key
+                        if bFoundQ == True:
+                           sVl = sVl + sKeystring[bLoop:(bLoop+1)]
+                        else:
+                           #self.Debugger.Log("Key is '" + sKy + "'. Switching from Key to Value...")
+                           bKy = False
                     elif sKeystring[bLoop:(bLoop+1)] == '"':
                         #we only care if we're already found an '='
                         if bKy == False:
@@ -143,10 +146,10 @@ class pyXMLTag():
             else:
                 self.Debugger.Log("Key Data Not Found...")
             self.Debugger.Log("*************************************************")
-            
+
     def __ne__(self,other):
         return not self.__eq__(other)
-    
+
     #Excludes a specific key tag and everything between it.
     def _Exclude(self, sKey):
         sTemp = ""
@@ -154,7 +157,7 @@ class pyXMLTag():
         sKeyStop = ""
         iKeyStart = -1
         iKeyStop = -1
-        bKeepGoing = True        
+        bKeepGoing = True
 
         try:
             sKeyStart = "<" + sKey
@@ -173,21 +176,21 @@ class pyXMLTag():
                                 bKeepGoing = False
                                 break
                     if iKeyStop > -1:
-                        self.Debugger.Log("iKeystop=" + str(iKeyStop) + " and sKeyStop="+sKeyStop)  
+                        self.Debugger.Log("iKeystop=" + str(iKeyStop) + " and sKeyStop="+sKeyStop)
                         sTemp = self.__sData[0:(iKeyStart -1)]
                         self.__sData = sTemp + self.__sData[iKeyStop+(len(sKeyStop)+1):len(self.__sData)]
                         self.Debugger.Log("Data after exclusion: \n\n" + self.__sData)
                     else:
                         bKeepGoing = False
                 else:
-                    bKeepGoing = False 
-                            
+                    bKeepGoing = False
+
             else:
                 self.Debugger.Log("Can't find KeyStart for exclusion: \n\n" + self.__sData)
 
         except Exception as e:
             self.Debugger.Log("PXML::_Exclude Error: " + str(e))
-        return sTemp 
+        return sTemp
 
     def Get_Data(self):
         return self.__sData
@@ -205,7 +208,7 @@ class pyXMLTag():
         except Exception as e:
             self.Debugger.Log("PXML::Get_Key Error: " + str(e))
             return ""
-    
+
     #Update a value in our dictionary
     def Update_Key(self,sKey,sValue):
         if sKey in self.__dKeys:
@@ -224,7 +227,7 @@ class pyXMLTag():
         else:
             self.Debugger.Log("Failed! Key doesn't exist")
             return False
-                
+
     def Set_Data(self, value):
         if self._bDataEncryption == True:
             self.Debugger.Log("Base64 Ecryption Off...")
@@ -233,7 +236,7 @@ class pyXMLTag():
             self.Debugger.Log("Base64 Ecryption Off...")
             self.__sData = value
         self.Debugger.Log("Setting Data to: \n" + value)
-                                
+
     #Set our key/value pair in our dict if it doesn't exist already
     def Set_Key(self,sKey,sValue):
         bSaveValue = True
@@ -243,11 +246,8 @@ class pyXMLTag():
             self.Debugger.Log("Saving Key '" + sKey + "', Value is '" + sValue + "'")
             self.__dKeys[sKey] = sValue
         else:
-            self.Debugger.Log("Key  '" + sKey + "' Exists with Value '" + self.__dKeys[sKey] + "'") 
+            self.Debugger.Log("Key  '" + sKey + "' Exists with Value '" + self.__dKeys[sKey] + "'")
             bSaveValue = False
         return bSaveValue
 
     Data = property(Get_Data,Set_Data)
-    
-            
-            
