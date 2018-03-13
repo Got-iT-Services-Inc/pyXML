@@ -1,3 +1,4 @@
 #ignore opened files in text editors
 *~
 __pycache__
+*.swp
