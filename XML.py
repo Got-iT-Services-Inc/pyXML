@@ -29,6 +29,7 @@ class pyXMLSingleTag():
         self.Debugger = pyDebugger(self,bDebug,False)
         self.Debugger.Log("Initializing XML Data Class with Encryption=" + str(bEncryption) + "...")
 
+        self._bDebug = bDebug
         self._sData = ""
         self._eData = ""
         self._dKeys = {}
@@ -47,8 +48,14 @@ class pyXMLSingleTag():
         if sKey == "":
             sKey = self._sKey
 
-        #set start and stop keys
+        #Check to see if we need to find the key
+        if sKey == "":
+            #We need to find the key
+            sKey = sXMLData[sXMLData.index("<")+1:sXMLData.index(" ",sXMLData.index("<")+1)]
+            self._sKey = sKey
+
         sKeyStart = "<" + sKey
+
         self.Debugger.Log("KeyStart set to '" + sKeyStart + "'")
 
         #try and get the position of the start key
@@ -72,12 +79,6 @@ class pyXMLSingleTag():
             self.Debugger.Log("***************************************************")
             return
 
-        #Check to see if we need to find the key
-        if sKey == "":
-            #We need to find the key
-            sKey = sXMLData[iKeyStart+1:sXMLData.index(" ",iKeyStart+1)]
-            self._sKey = sKey
-
         #Set stop key
         sKeyStop = "</" + sKey + ">"
         self.Debugger.Log("KeyStop set to '" + sKeyStop + "'")
@@ -88,24 +89,22 @@ class pyXMLSingleTag():
         if iKeyStop > -1:
             self.Debugger.Log("KeyStop index is '" + str(iKeyStop) + "'")
         else:
-            self.Debugger.Log("PXML Warning: Couldn't find StopKey in XML Data!")
-
-        #Try and find our start tag end
-        try:
-            iKeyStartStop = sXMLData.find(">",iKeyStart)
-            self.Debugger.Log("KeyStartStop index is '" + str(iKeyStartStop) + "'")
-        except:
-            self.Debugger.Log("***************************************************")
-            self.Debugger.Log("PXML Error: Couldn't find KeyStartStop in XML Data!")
-            self.Debugger.Log("XML='" + sXMLData + "'")
-            self.Debugger.Log("***************************************************")
-            return
+            #check to see if it's a self-ending tag
+            self.Debugger.Log("Checking for self ending tag...")
+            if sXMLData[iKeyStartStop -1:iKeyStartStop] == "/":
+                self.Debugger.Log("Self ending key found!")
+                iKeyStop = iKeyStartStop
+                sKeyStop = ">"
+                self.Debugger.Log("KeyStop index is '" + str(iKeyStop) + "'")
+            else:
+                self.Debugger.Log("PXML Warning: Couldn't find StopKey in XML Data!")
 
         #check to make sure our range is valid
         if iKeyStop - iKeyStart > 0:
             #Get our data and store it
-            self.Set_Data(sXMLData[(iKeyStartStop+1):iKeyStop])
-            self.Set_EData(sXMLData[(iKeyStop + len(sKeyStop) + 1):])
+            if iKeyStartStop != iKeyStop:
+                self.Set_Data(sXMLData[(iKeyStartStop+1):iKeyStop])
+            self.Set_EData(sXMLData[(iKeyStop + len(sKeyStop) ):])
             self.isValid = True
             self.Debugger.Log("Valid Data Found...")
 
@@ -218,8 +217,9 @@ class pyXMLSingleTag():
             self.Debugger.Log("PXML::_Exclude Error: " + str(e))
         return sTemp
 
-    def Get_Data(self):
+    def Get_Data(self, bSafe=False):
         return self._sData
+
 
     def Get_EData(self):
         return self._eData
@@ -263,7 +263,7 @@ class pyXMLSingleTag():
 
     def Set_Data(self, value):
         if self._bDataEncryption == True:
-            self.Debugger.Log("Base64 Ecryption Off...")
+            self.Debugger.Log("Base64 Ecryption On...")
             self._sData = base64.b64decode(value)
         else:
             self.Debugger.Log("Base64 Ecryption Off...")
@@ -297,27 +297,34 @@ class pyXMLSingleTag():
 
 class pyXMLTag(pyXMLSingleTag):
 
-    def __init__(self,sXMLData,sKey,bDebug=True,bEncryption=True):
+    def __init__(self,sXMLData,sKey,bDebug=True,bEncryption=False):
         self._sData = ""
         super().__init__(sXMLData,sKey,bDebug,bEncryption)
 
         #We need to iterate through our Data and create variables for each tag
 #        while True:
-        self.Debugger.Log("pyXMLTag.Get_Data = '" + str(self.Get_Data()) + "'")
         self.ProcessAdditional()
 
     def ProcessAdditional(self):
         self.Debugger.Log("Processing additional child tags...")
-
+        tSelf = []
         if self.Get_Data().find("<") > -1:
             self.Debugger.Log("Additional child tags found....")
-            while tData.find("<") > -1:
-            
-                #Found additional data, iterate
-                tXML= pyXMLSingleTag(tData,"",bDebug,bEncryption)
-                if tXML._sKey != "":
-                    self.Children[tXML._sKey] = tXML
-                self.Set_Data(tXML.Get_EData())
+            tSelf.append(self)
+            for tTag in tSelf:
+                while tTag.Get_Data().find("<") > -1:
+                    #Found additional data, iterate
+                    tXML= pyXMLSingleTag(tTag.Get_Data(),"",self._bDebug,self._bDataEncryption)
+                    if tXML._sKey != "":
+                        tTag.Children[tXML._sKey] = tXML
+                    tTag.Set_Data(tXML.Get_EData())
+                self.Debugger.Log("No more Tags found in this Key...")
+                #There are no more tags within this tag, We need to add children to the stuff in tSelf
+                self.Debugger.Log(str(len(tTag.Children)))
+                for ChildName, Child in tTag.Children.items():
+                   tSelf.append(Child)
+                   #self.Debugger.Log(Child)
+                   self.Debugger.Log("Appending " + ChildName + "...")
         else:
             self.Debugger.Log("No Additional child tags found...")
 
